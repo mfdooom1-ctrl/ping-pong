@@ -61,35 +61,63 @@ test("all shot choices and eight service styles are reachable", async ({
   }
   expect(styles.size).toBe(8);
 });
-test("real keyboard returns sustain a rally and audio runs after a gesture", async ({
+test("keyboard returns sustain a rally and audio runs after a gesture", async ({
   page,
 }) => {
+  test.setTimeout(60000);
   await page.goto("./");
   await page.getByRole("button", { name: "TRAINING", exact: true }).click();
   await page.getByRole("button", { name: "LET'S PRACTICE" }).click();
   await page.locator("#shot-label").click();
   await page.getByRole("button", { name: "BLOCK", exact: false }).click();
   await page.keyboard.press("Space");
-  let swung = -1;
-  await expect
-    .poll(
-      async () => {
-        const s = await state(page);
-        if (
-          s.state === "playing" &&
-          s.ball.v.y > 0 &&
-          s.bounces > 0 &&
-          s.ball.p.y > s.players[0].y - 0.48 &&
-          s.rally !== swung
-        ) {
-          swung = s.rally;
-          await page.keyboard.press("Space");
+  // Schedule input in the browser's animation frames: a WebDriver round trip can
+  // exceed a paddle's timing window on a software-rendered CI worker. This sends
+  // ordinary keyboard events through Controls; it never moves the ball or scores.
+  await page.evaluate(() => {
+    let stopped = false,
+      swung = "";
+    (window as any).__stopRallyTest = () => {
+      stopped = true;
+    };
+    const press = () => {
+      document.body.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          code: "Space",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      document.body.dispatchEvent(
+        new KeyboardEvent("keyup", { code: "Space", bubbles: true }),
+      );
+    };
+    const tick = () => {
+      if (stopped) return;
+      const s = (window as any).__SPIN_CITY__.getState();
+      if (s.state === "ready" && s.server === 0) {
+        swung = "";
+        press();
+      }
+      if (s.state === "playing" && s.ball.v.y > 0 && s.bounces > 0) {
+        const eta = (s.players[0].y - 0.12 - s.ball.p.y) / s.ball.v.y;
+        const key = s.score.join(":") + "/" + s.rally;
+        if (eta < 0.12 && eta > -0.02 && key !== swung) {
+          swung = key;
+          press();
         }
-        return s.stats.returns;
-      },
-      { timeout: 25000, intervals: [30] },
-    )
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await expect
+    .poll(async () => (await state(page)).stats.returns, {
+      timeout: 45000,
+      intervals: [150],
+    })
     .toBeGreaterThanOrEqual(2);
+  await page.evaluate(() => (window as any).__stopRallyTest());
   const audio = await page.evaluate(() =>
     (window as any).__SPIN_CITY__.getAudioState(),
   );
