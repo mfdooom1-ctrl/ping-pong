@@ -9,7 +9,7 @@ async function boot() {
   new ResizeObserver(() => {
     appElement.style.setProperty(
       "--scale",
-      String(appElement.clientWidth / 960),
+      String(Math.min(appElement.clientWidth / 960, appElement.clientHeight / 540)),
     );
   }).observe(appElement);
   try {
@@ -35,7 +35,7 @@ async function boot() {
       powerPreference: "high-performance",
     },
     scale: {
-      mode: Phaser.Scale.FIT,
+      mode: Phaser.Scale.RESIZE,
       autoCenter: Phaser.Scale.CENTER_BOTH,
       width: 960,
       height: 540,

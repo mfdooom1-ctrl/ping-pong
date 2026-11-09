@@ -1648,3 +1648,13 @@ select {
     backdrop-filter: none;
   }
 }
+
+/* Use the full viewport; the camera expands its view without stretching gameplay. */
+body { padding: 0; }
+#app { width: 100vw; height: 100dvh; aspect-ratio: auto; }
+#ui { left: 50%; top: 50%; transform: scale(var(--scale)) translate(-50%, -50%); }
+.game-input { left: calc((960px - 100vw / var(--scale)) / 2); right: calc((960px - 100vw / var(--scale)) / 2); }
+.scoreboard { padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
+:root { --pink: #ff2daa; --cyan: #00e5ff; --yellow: #ffd600; }
+.joystick { opacity: .65; }
+.game-tip { color: #fff8d6; }

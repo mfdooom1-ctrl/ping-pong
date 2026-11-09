@@ -38,6 +38,8 @@ export class App {
   private arena = 0;
   private opponent = 6;
   private drill = "free";
+  private lesson = 0;
+  private lessonAim = false;
   private challenge = "rally";
   private tournamentRound = 0;
   private ui = document.getElementById("ui")!;
@@ -113,7 +115,8 @@ export class App {
     return `<header class="panel-header"><div><span class="eyebrow">${kicker}</span><h2>${title}</h2></div><button class="icon-button" data-action="back" aria-label="Back">&lt;</button></header>`;
   }
   private footer() {
-    return `<footer class="screen-footer"><span><i class="status-dot"></i> LOCAL / OFFLINE READY</span><span>VOL. 01 · EST. 1982</span></footer>`;
+    const safari = /iPhone|iPad/.test(navigator.userAgent) && !matchMedia("(display-mode: standalone)").matches;
+    return `<footer class="screen-footer"><span><i class="status-dot"></i> LOCAL / OFFLINE READY</span><span>${safari ? "SAFARI: SHARE → ADD TO HOME SCREEN FOR FULLSCREEN" : "VOL. 01 · EST. 1982"}</span></footer>`;
   }
   home() {
     this.controls?.destroy();
@@ -178,7 +181,7 @@ export class App {
       ["backspin", "CHOP SHOP", "Read the spin. Open your paddle."],
       ["hands", "BOTH SIDES", "Switch forehand and backhand."],
     ];
-    this.ui.innerHTML = `<section class="screen panel">${this.header("WELCOME TO THE SPIN LAB", "TRAINING / 68% SPEED. 100% STYLE.")}<p class="intro-copy">Move with the left thumb. Tap or swipe with the right. Hit as the ball reaches your glowing contact ring.</p><div class="drill-grid">${drills.map(([id, name, text], i) => `<button class="drill-card ${this.drill === id ? "selected" : ""}" data-action="drill" data-value="${id}"><b>0${i + 1}</b><h3>${name}</h3><p>${text}</p></button>`).join("")}</div><div class="training-guide"><div><b>↑ TOPSPIN</b><span>↓ BACKSPIN</span></div><div><b>← → SIDESPIN</b><span>DIAGONAL = MIXED</span></div><div><b>HOLD + RELEASE</b><span>POWER / TIGHTER TIMING</span></div><div><b>TAP = FLAT</b><span>HIGH BALL? SMASH.</span></div></div><button class="start-button bottom-cta" data-action="training-play">LET'S PRACTICE ▶</button><p class="keyboard-note">KEYBOARD: WASD / ARROWS move · SPACE hit · J top · K chop · U/I side · M smash · P pause</p></section>`;
+    this.ui.innerHTML = `<section class="screen panel">${this.header("WELCOME TO THE SPIN LAB", "TRAINING / 68% SPEED. 100% STYLE.")}<p class="intro-copy">Your feet follow the ball. Wait for it, then tap anywhere on the right. Swipe toward your target.</p><div class="drill-grid">${drills.map(([id, name, text], i) => `<button class="drill-card ${this.drill === id ? "selected" : ""}" data-action="drill" data-value="${id}"><b>0${i + 1}</b><h3>${name}</h3><p>${text}</p></button>`).join("")}</div><div class="training-guide"><div><b>↑ TOPSPIN</b><span>↓ BACKSPIN</span></div><div><b>← → SIDESPIN</b><span>DIAGONAL = MIXED</span></div><div><b>LONG FAST SWIPE</b><span>POWER / TIGHTER TIMING</span></div><div><b>TAP = FLAT</b><span>HIGH BALL? SMASH.</span></div></div><button class="start-button bottom-cta" data-action="training-play">LET'S PRACTICE ▶</button><p class="keyboard-note">KEYBOARD: WASD / ARROWS move · SPACE hit · J top · K chop · U/I side · M smash · P pause</p></section>`;
   }
   private challenges() {
     this.view = "challenges";
@@ -220,7 +223,7 @@ export class App {
       step: number,
     ) =>
       `<label class="slider-row"><span>${name}</span><output id="value-${key}">${Number(o[key]).toFixed(2)}</output><input type="range" data-option="${key}" min="${min}" max="${max}" step="${step}" value="${o[key]}"></label>`;
-    this.ui.innerHTML = `<section class="screen panel">${this.header("TUNE YOUR MACHINE", "OPTIONS / SAVED ON THIS DEVICE")}<div class="options-grid"><div><h3>AUDIO / FEEL</h3>${toggle("music", "MUSIC", "Original 13-theme synth sequencer")}${toggle("sfx", "SOUND EFFECTS", "Paddle, bounce, crowd & chiptune voices")}${slider("volume", "MASTER VOLUME", 0, 1, 0.05)}${toggle("haptics", "HAPTICS", "Where the browser supports vibration")}<button class="text-link" data-action="install">INSTALL ON IPHONE →</button></div><div><h3>THUMB WORK</h3>${toggle("leftHanded", "LEFT-HANDED", "Move on the right. Swing on the left.")}${toggle("swapped", "SWAP CONTROL ZONES", "Exchange movement and swing zones")}${toggle("assist", "POSITION ASSIST", "Your feet follow the incoming ball")}${slider("sensitivity", "GESTURE SENSITIVITY", 0.5, 2, 0.05)}${slider("zoneSize", "CONTROL SIZE", 0.75, 1.3, 0.05)}<label class="inline-select">PADDLE HAND<select data-option="manualHand">${["auto", "forehand", "backhand"].map((v) => `<option value="${v}" ${o.manualHand === v ? "selected" : ""}>${v.toUpperCase()}</option>`).join("")}</select></label></div><div><h3>THE HOUSE RULES</h3><label class="inline-select">DIFFICULTY<select data-option="difficulty">${["ROOKIE", "PRO", "LEGEND"].map((v) => `<option ${o.difficulty === v ? "selected" : ""}>${v}</option>`).join("")}</select></label><label class="inline-select">POINTS PER GAME<select data-option="points">${[5, 7, 11].map((v) => `<option value="${v}" ${o.points === v ? "selected" : ""}>${v} / WIN BY 2</option>`).join("")}</select></label><p class="micro">Rules and difficulty apply to your next match. Physics stay the same.</p><button class="outline-button" data-action="debug">DEBUG ${this.debug ? "ON" : "OFF"}</button><p class="micro">FPS / X Y Z / VELOCITY / SPIN / AI<br>TOGGLE WITH THE BACKTICK KEY</p><button class="outline-button" data-action="update">CHECK FOR UPDATE</button></div></div></section>`;
+    this.ui.innerHTML = `<section class="screen panel">${this.header("TUNE YOUR MACHINE", "OPTIONS / SAVED ON THIS DEVICE")}<div class="options-grid"><div><h3>AUDIO / FEEL</h3>${toggle("music", "MUSIC", "Original 13-theme synth sequencer")}${toggle("sfx", "SOUND EFFECTS", "Paddle, bounce, crowd & chiptune voices")}${slider("volume", "MASTER VOLUME", 0, 1, 0.05)}${toggle("haptics", "HAPTICS", "Where the browser supports vibration")}<button class="text-link" data-action="install">INSTALL ON IPHONE →</button></div><div><h3>THUMB WORK</h3>${toggle("leftHanded", "LEFT-HANDED", "Move on the right. Swing on the left.")}${toggle("swapped", "SWAP CONTROL ZONES", "Exchange movement and swing zones")}${toggle("assist", "POSITION ASSIST", "Your feet follow the incoming ball")}<label class="inline-select">ARCADE ASSIST<select data-option="assistance">${["EASY", "PRO", "MANUAL"].map(v => `<option value="${v}" ${o.assistance === v ? "selected" : ""}>${v === "EASY" ? "EASY ASSIST" : v}</option>`).join("")}</select></label>${slider("sensitivity", "GESTURE SENSITIVITY", 0.5, 2, 0.05)}${slider("zoneSize", "CONTROL SIZE", 0.75, 1.3, 0.05)}<label class="inline-select">PADDLE HAND<select data-option="manualHand">${["auto", "forehand", "backhand"].map((v) => `<option value="${v}" ${o.manualHand === v ? "selected" : ""}>${v.toUpperCase()}</option>`).join("")}</select></label></div><div><h3>THE HOUSE RULES</h3><label class="inline-select">DIFFICULTY<select data-option="difficulty">${["ROOKIE", "PRO", "LEGEND"].map((v) => `<option ${o.difficulty === v ? "selected" : ""}>${v}</option>`).join("")}</select></label><label class="inline-select">POINTS PER GAME<select data-option="points">${[5, 7, 11].map((v) => `<option value="${v}" ${o.points === v ? "selected" : ""}>${v} / WIN BY 2</option>`).join("")}</select></label><p class="micro">Rules and difficulty apply to your next match. Physics stay the same.</p><button class="outline-button" data-action="debug">DEBUG ${this.debug ? "ON" : "OFF"}</button><p class="micro">FPS / X Y Z / VELOCITY / SPIN / AI<br>TOGGLE WITH THE BACKTICK KEY</p><button class="outline-button" data-action="update">CHECK FOR UPDATE</button></div></div></section>`;
   }
   private option(event: Event) {
     const target = event.target as HTMLInputElement;
@@ -238,12 +241,14 @@ export class App {
     const output = document.getElementById("value-" + key);
     if (output) output.textContent = Number(value).toFixed(2);
     if (this.controls) this.controls.options = this.save.options;
-    if (this.match && ["assist", "manualHand", "haptics"].includes(key))
+    if (this.match && ["assist", "assistance", "manualHand", "haptics"].includes(key))
       (this.match.config.options as any)[key] = value;
   }
   private play(mode: Mode) {
     this.controls?.destroy();
     this.shot = "flat";
+    this.lesson = 0;
+    this.lessonAim = false;
     let arena = this.arena,
       opponent = this.opponent;
     if (mode === "story") {
@@ -289,12 +294,16 @@ export class App {
     this.clock = 0;
     this.hudClock = 0;
     const reverse = this.save.options.leftHanded !== this.save.options.swapped;
-    this.ui.innerHTML = `<section class="game-hud" id="hud" data-state="${match.state}"><header class="scoreboard"><div class="player-name"><i class="player-dot"></i><span>${character(match.config.hero).nick}</span><small>YOU / ${match.config.mode.toUpperCase()}</small></div><div class="score-center"><span id="score-you">${match.rules.score[0]}</span><b>:</b><span id="score-ai">${match.rules.score[1]}</span></div><div class="rival-name"><span>${character(match.config.opponent).nick}</span><small id="server-label">YOUR SERVE</small></div><button class="pause-button" data-action="pause" aria-label="Pause"><i></i><i></i></button></header><div class="venue-label"><b>${ARENAS[match.config.arena].name}</b><span>${ARENAS[match.config.arena].city}</span></div><div class="rally-count">RALLY <b id="rally">00</b></div><div id="game-input" class="game-input ${reverse ? "reverse" : ""}" style="--zone:${this.save.options.zoneSize}"><div class="joystick"><span>MOVE</span><i><b></b></i><small>WASD / ARROWS</small></div><div class="strike-zone"><span>HIT / SWIPE</span><i>↑<b>+</b>↓</i><small>TAP / SPACE</small></div></div><div class="timing" id="timing"></div><div class="match-feedback" id="match-feedback">TAP TO SERVE</div><div class="shot-tools"><button data-action="arsenal" id="shot-label">FLAT DRIVE ▾</button><button data-action="serve-style" id="serve-style">SERVE: LONG ↻</button><button data-action="smash" id="smash" disabled>SMASH!</button></div><div class="spin-meter"><span>SPIN</span><b id="spin-value">—</b><div><i id="spin-bar"></i></div></div><div class="game-tip" id="game-tip">TAP OR PRESS SPACE TO SERVE · HIT AT THE CONTACT RING</div><pre id="debug" class="${this.debug ? "" : "hidden"}"></pre></section><div id="modal-layer"></div>`;
+    this.ui.innerHTML = `<section class="game-hud" id="hud" data-state="${match.state}"><header class="scoreboard"><div class="player-name"><i class="player-dot"></i><span>${character(match.config.hero).nick}</span><small>YOU / ${match.config.mode.toUpperCase()}</small></div><div class="score-center"><span id="score-you">${match.rules.score[0]}</span><b>:</b><span id="score-ai">${match.rules.score[1]}</span></div><div class="rival-name"><span>${character(match.config.opponent).nick}</span><small id="server-label">YOUR SERVE</small></div><button class="pause-button" data-action="pause" aria-label="Pause"><i></i><i></i></button></header><div class="venue-label"><b>${ARENAS[match.config.arena].name}</b><span>${ARENAS[match.config.arena].city}</span></div><div class="rally-count">RALLY <b id="rally">00</b></div><div id="game-input" class="game-input ${reverse ? "reverse" : ""}" style="--zone:${this.save.options.zoneSize}"><div class="joystick"><span>AUTO FOOTWORK</span><i><b></b></i><small>WASD / ARROWS</small></div><div class="strike-zone"><span>HIT / SWIPE</span><i>↑<b>+</b>↓</i><small>TAP / SPACE</small></div></div><div class="timing" id="timing"></div><div class="match-feedback" id="match-feedback">TAP TO SERVE</div><div class="shot-tools"><button data-action="arsenal" id="shot-label">FLAT DRIVE ▾</button><button data-action="serve-style" id="serve-style">SERVE: LONG ↻</button><button data-action="smash" id="smash" disabled>SMASH!</button></div><div class="spin-meter"><span>SPIN</span><b id="spin-value">—</b><div><i id="spin-bar"></i></div></div><div class="game-tip" id="game-tip">TAP RIGHT TO HIT · SWIPE TO AIM · ↑ TOPSPIN / ↓ CHOP</div><pre id="debug" class="${this.debug ? "" : "hidden"}"></pre></section><div id="modal-layer"></div>`;
     this.controls = new Controls(
       document.getElementById("game-input")!,
       this.save.options,
     );
     this.controls.onStroke = (g) => {
+      if (match.ball.v.y > 0 && this.lesson === 0) this.lesson = 1;
+      if (this.lesson >= 2 && Math.abs(g.aim) > 0.15) this.lessonAim = true;
+      if (this.lesson >= 3 && g.shot === "topspin") this.lesson = 4;
+      if (this.lesson === 4 && g.shot === "backspin") this.lesson = 5;
       match.input(g);
     };
     this.controls.onPause = () => this.pause();
@@ -311,7 +320,7 @@ export class App {
   }
   private event(e: MatchEvent, m: Match) {
     if (e.type === "hit") {
-      this.scene.impact();
+      this.scene.impact(e.shot === "smash");
       this.audio.sfx(
         e.shot === "smash"
           ? "smash"
@@ -331,6 +340,10 @@ export class App {
         navigator.vibrate(e.shot === "smash" ? 25 : 8);
       if (m.training && this.drill === "hands" && e.side === 0)
         this.setShot(this.shot === "forehand" ? "backhand" : "forehand");
+    }
+    if (e.type === "hit" && e.side === 0 && m.rally > 1) {
+      if (this.lesson === 1) this.lesson = 2;
+      else if (this.lesson === 2 && this.lessonAim) this.lesson = 3;
     }
     if (e.type === "bounce") this.audio.sfx("bounce");
     if (e.type === "net") this.audio.sfx("net");
@@ -504,10 +517,12 @@ export class App {
     if (m.clock > this.timingUntil) this.setText("timing", "");
     if (m.training || m.config.mode === "challenge") {
       const hints = [
-        "HIT AS THE BALL REACHES YOUR CONTACT RING",
-        "SWIPE ↑ TOP / ↓ CHOP / ← → SIDE",
-        "HOLD THEN RELEASE FOR A POWER SHOT",
-        "TRY THE FULL SHOT MENU / FLAT DRIVE ▾",
+        "1/5 WAIT FOR THE BALL · YOUR FEET MOVE AUTOMATICALLY",
+        "2/5 TAP ANYWHERE ON THE RIGHT TO RETURN",
+        "3/5 SWIPE LEFT OR RIGHT TOWARD YOUR TARGET",
+        "4/5 SWIPE UP FOR TOPSPIN",
+        "4/5 NOW SWIPE DOWN FOR BACKSPIN",
+        "5/5 KEEP A SLOW RALLY GOING · AIM FOR 8–12 EXCHANGES",
       ];
       const c = CHALLENGES.find((c) => c.id === m.config.challenge);
       const value = m.stats[m.config.challenge as keyof typeof m.stats] ?? 0;
@@ -515,14 +530,14 @@ export class App {
         "game-tip",
         m.config.mode === "challenge"
           ? `${c?.name} / ${value} OF ${c?.goal}`
-          : hints[Math.floor(m.clock / 7) % hints.length],
+          : hints[Math.min(this.lesson, hints.length - 1)],
       );
     } else
       this.setText(
         "game-tip",
         m.state === "ready"
           ? "TAP / SPACE TO SERVE · P TO PAUSE"
-          : "SWIPE TO SPIN · HOLD FOR POWER · HIT AT THE CONTACT RING",
+          : "FEET ON AUTO · TAP RIGHT TO HIT · SWIPE TO AIM / SPIN",
       );
     if (this.debug) {
       const b = m.ball;

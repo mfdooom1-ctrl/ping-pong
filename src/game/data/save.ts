@@ -7,6 +7,7 @@ export interface Options {
   leftHanded: boolean;
   zoneSize: number;
   assist: boolean;
+  assistance?: "EASY" | "PRO" | "MANUAL";
   manualHand: "auto" | "forehand" | "backhand";
   difficulty: "ROOKIE" | "PRO" | "LEGEND";
   points: 5 | 7 | 11;
@@ -37,6 +38,7 @@ export const DEFAULT_OPTIONS: Options = {
   leftHanded: false,
   zoneSize: 1,
   assist: true,
+  assistance: "EASY",
   manualHand: "auto",
   difficulty: "ROOKIE",
   points: 5,
@@ -96,6 +98,7 @@ export function loadSave(storage: StorageLike): Save {
     if (d.outfits.includes(raw.outfit)) d.outfit = raw.outfit;
     if (d.paddles.includes(raw.paddle)) d.paddle = raw.paddle;
     const o = raw.options ?? {};
+    if (["EASY", "PRO", "MANUAL"].includes(o.assistance)) d.options.assistance = o.assistance;
     for (const k of [
       "music",
       "sfx",

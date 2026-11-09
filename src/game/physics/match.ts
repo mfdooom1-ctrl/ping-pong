@@ -1,4 +1,4 @@
-import { PHYSICS as P } from "./config";
+import { ASSIST, PHYSICS as P } from "./config";
 import {
   clamp,
   copyBall,
@@ -142,6 +142,9 @@ export class Match {
   private emit(event: MatchEvent) {
     this.onEvent(event);
   }
+  get assistance() {
+    return ASSIST[!this.config.options.assist ? "MANUAL" : this.config.options.assistance ?? "EASY"];
+  }
   get training() {
     return this.config.mode === "training";
   }
@@ -206,7 +209,7 @@ export class Match {
   }
   update(delta: number, input: { x: number; y: number }) {
     if (this.paused || this.state === "over") return;
-    const scale = this.training ? 0.68 : 1;
+    const scale = this.training ? 0.68 : this.state === "playing" ? this.assistance.pace : 1;
     this.accumulator += Math.min(delta, 0.1) * scale;
     let ticks = 0;
     while (this.accumulator >= P.step && ticks++ < 16) {
@@ -268,15 +271,15 @@ export class Match {
     }
     const p = this.players[0];
     const assist =
-      this.config.options.assist &&
+      this.assistance.speed > 0 &&
       Math.abs(input.x) < 0.12 &&
       this.ball.v.y > 0;
     const target = clamp(this.assistX, -1.12, 1.12);
     const vx = assist
       ? clamp(
-          (target - p.x) * 6,
-          -p.character.footwork * 0.82,
-          p.character.footwork * 0.82,
+          (target - p.x) * this.assistance.tracking,
+          -p.character.footwork * this.assistance.speed,
+          p.character.footwork * this.assistance.speed,
         )
       : input.x * p.character.footwork;
     p.vx = vx;
@@ -388,7 +391,7 @@ export class Match {
     }
     if (Math.abs(this.ball.p.x) > 2.5 || Math.abs(this.ball.p.y) > 3.8)
       this.point(this.rules.out(), "WIDE / LONG");
-    if (this.pending && this.clock - this.pending.at > 0.36) {
+    if (this.pending && this.clock - this.pending.at > this.assistance.buffer) {
       this.pending = undefined;
       this.lastTiming = "MISS";
       this.emit({ type: "timing", timing: "MISS" });
@@ -404,7 +407,7 @@ export class Match {
       pos.z > P.paddleHeight
     )
       return;
-    if (side === 0 && !this.pending) return;
+    if (side === 0 && (!this.pending || this.clock - this.pending.at > this.assistance.buffer)) return;
     const invalid = this.rules.hit(side);
     if (invalid !== null) {
       this.point(invalid, "VOLLEY / ILLEGAL RETURN");
@@ -418,7 +421,12 @@ export class Match {
     if (side === 0) {
       const pending = this.pending!;
       ({ shot, aim, charge, mixed } = pending.gesture);
+      // Intent is buffered, but only an incoming legal return can consume it.
+      const age = this.clock - pending.at;
       error = pending.error;
+      if (age <= this.assistance.buffer && Math.abs(error) <= this.assistance.timing)
+        error *= this.assistance === ASSIST.EASY ? 0.15 : 0.65;
+      error *= 1 + charge * 0.5;
       const timing = timingFor(error, shotById(shot));
       this.lastTiming = timing;
       this.emit({ type: "timing", timing });

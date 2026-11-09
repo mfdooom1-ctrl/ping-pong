@@ -110,7 +110,7 @@ export class ArcadeScene extends Phaser.Scene {
     g.fillStyle(arena.sky);
     g.fillRect(0, 0, 960, 540);
     for (let y = 60; y < 330; y += 4) {
-      g.fillStyle(arena.glow, (y / 330) * 0.08);
+      g.fillStyle(arena.glow, (y / 330) * 0.22);
       g.fillRect(0, y, 960, 4);
     }
     // A striped synthwave sun, a unique silhouette and a crisp illuminated skyline.
@@ -137,7 +137,7 @@ export class ArcadeScene extends Phaser.Scene {
           if (rnd.next() > 0.42) {
             g.fillStyle(
               rnd.next() > 0.4 ? arena.glow : arena.accent,
-              rnd.range(0.18, 0.54),
+              rnd.range(0.45, 0.9),
             );
             g.fillRect(wx, wy, 3, 4);
           }
@@ -145,7 +145,7 @@ export class ArcadeScene extends Phaser.Scene {
     }
     g.fillStyle(0x0b1125);
     g.fillRect(0, 270, 960, 270);
-    g.fillStyle(arena.glow, 0.06);
+    g.fillStyle(arena.glow, 0.15);
     g.fillRect(0, 270, 960, 270);
     // Floor lines converge at the horizon; reflections stay outside the ball's flight.
     for (let x = -1000; x < 2000; x += 130) {
@@ -546,8 +546,9 @@ export class ArcadeScene extends Phaser.Scene {
     this.sprites.forEach((s) => s.setVisible(true));
     this.trail = [];
   }
-  impact() {
+  impact(smash = false) {
     this.pop = 0.12;
+    if (smash) this.cameras.main.shake(90, 0.002);
   }
   setCosmetics(outfit: number, paddle: number) {
     if (outfit === 0 && paddle === 0) {
@@ -593,6 +594,24 @@ export class ArcadeScene extends Phaser.Scene {
     const g = this.accents;
     g.clear();
     const arena = ARENAS[this.arena];
+    // Peripheral motion leaves the central flight path clear.
+    for (const x of [42, 790]) {
+      g.lineStyle(3, arena.glow, 0.65 + Math.sin(time * 0.003) * 0.2);
+      g.strokeRect(x, 125, 126, 44);
+      g.fillStyle(arena.accent, 0.55);
+      g.fillRect(x + 8, 134, 110, 5);
+      g.fillStyle(arena.glow, 0.1);
+      g.fillEllipse(x + 60, 460, 115, 26);
+    }
+    for (let i = 0; i < 16; i++) {
+      const x = i < 8 ? 24 + i * 23 : 758 + (i - 8) * 23;
+      const cheer = this.match?.state === "point" || this.pop > 0;
+      const y = 290 + Math.round(Math.sin(time * (cheer ? 0.015 : 0.003) + i) * (cheer ? 6 : 1));
+      g.fillStyle(i % 2 ? arena.glow : arena.accent, 0.85);
+      g.fillRect(x, y, 8, 13);
+      g.fillStyle(0xffd6a0); g.fillRect(x + 1, y - 6, 6, 6);
+      if (cheer) { g.fillRect(x - 4, y - 3, 4, 8); g.fillRect(x + 8, y - 3, 4, 8); }
+    }
     if (arena.decor === "rain")
       for (let i = 0; i < 35; i++) {
         const x = (i * 79 + time * 0.06) % 960,
@@ -606,6 +625,11 @@ export class ArcadeScene extends Phaser.Scene {
       g.fillStyle(arena.glow, 0.2);
       g.fillRect(x, 110 + i * 39 + Math.sin(time * 0.001 + i) * 8, 2, 2);
     }
+    const camera = this.cameras.main;
+    const zoom = Math.min(this.scale.width / 960, this.scale.height / 540);
+    camera.setZoom(zoom).centerOn(480, 270);
+    const worldWidth = this.scale.width / zoom;
+    this.background.setPosition(480 - worldWidth / 2, 0).setDisplaySize(worldWidth, 540);
     if (this.menu) {
       this.portraits[0].y = 433 + Math.round(Math.sin(time * 0.0018) * 2);
       this.portraits[1].y = 439 + Math.round(Math.sin(time * 0.0018 + 1) * 2);
@@ -652,16 +676,16 @@ export class ArcadeScene extends Phaser.Scene {
     this.trailInk.clear();
     if (m.state === "playing" || m.state === "toss" || m.state === "ready") {
       ink.fillStyle(0x05091b, 0.45);
-      ink.fillEllipse(shadow.x, shadow.y, 12 + Math.max(0, b.p.z) * 4, 5);
+      ink.fillEllipse(shadow.x, shadow.y, 17 + Math.max(0, b.p.z) * 4, 7);
       if (this.frame % 2 === 0) {
         this.trail.unshift({ x: at.x, y: at.y });
         if (this.trail.length > 8) this.trail.pop();
       }
       const spinning = Math.hypot(b.w.x, b.w.y, b.w.z) > 120;
-      if (spinning && m.state === "playing")
+      if (m.state === "playing")
         for (let i = 1; i < this.trail.length; i++) {
           this.trailInk.fillStyle(
-            b.w.z > 50 ? 0x64f7e7 : b.w.z < -50 ? 0xf779dc : 0xffc86a,
+            Math.abs(b.w.z) > 50 ? 0xff2daa : b.w.x < -50 ? 0x00e5ff : 0xffd600,
             (1 - i / this.trail.length) * 0.35,
           );
           this.trailInk.fillRect(
@@ -672,12 +696,20 @@ export class ArcadeScene extends Phaser.Scene {
           );
         }
       ink.fillStyle(0x08112c);
+      ink.fillRect(Math.round(at.x) - 7, Math.round(at.y) - 7, 15, 15);
+      ink.fillStyle(0xfffbd6);
       ink.fillRect(Math.round(at.x) - 5, Math.round(at.y) - 5, 11, 11);
-      ink.fillStyle(0xfff0b5);
-      ink.fillRect(Math.round(at.x) - 3, Math.round(at.y) - 3, 7, 7);
       ink.fillStyle(0xffffff);
       ink.fillRect(Math.round(at.x) - 2, Math.round(at.y) - 2, 3, 3);
-      if (m.training || m.config.options.difficulty === "ROOKIE") {
+      if (m.training || m.config.options.assist) {
+        if (b.v.y > 0) {
+          const zone = project(m.players[0].x, m.playerPlane);
+          ink.fillStyle(0x00e5ff, 0.14);
+          ink.fillEllipse(zone.x, zone.y, 90, 24);
+          if (Math.abs(b.p.y - m.playerPlane) < 0.4)
+            this.sprites[0].setTint(0xb7ff00);
+          else this.sprites[0].clearTint();
+        } else this.sprites[0].clearTint();
         if (m.predicted && b.v.y > 0) {
           const p = project(m.predicted.x, m.predicted.y);
           ink.lineStyle(1, 0x80ffdc, 0.7);
@@ -699,6 +731,11 @@ export class ArcadeScene extends Phaser.Scene {
       this.pop -= delta / 1000;
       g.lineStyle(2, 0xffe6a7, this.pop * 6);
       g.strokeCircle(at.x, at.y, 8 + (1 - this.pop / 0.12) * 14);
+      for (let i = 0; i < 6; i++) {
+        const a = i * Math.PI / 3, radius = 12 + (1 - this.pop / 0.12) * 22;
+        g.fillStyle(i % 2 ? 0xff8a00 : 0xffd600, this.pop * 7);
+        g.fillRect(at.x + Math.cos(a) * radius, at.y + Math.sin(a) * radius, 4, 4);
+      }
     }
     this.onFrame(m, delta);
   }

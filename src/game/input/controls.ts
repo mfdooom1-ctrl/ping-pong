@@ -78,7 +78,7 @@ export class Controls {
   }
   private isLeft(clientX: number) {
     const r = this.element.getBoundingClientRect();
-    const left = (clientX - r.left) / r.width < 0.43;
+    const left = (clientX - r.left) / r.width < 0.5;
     return this.options.leftHanded !== this.options.swapped ? !left : left;
   }
   private down = (e: PointerEvent) => {
@@ -131,25 +131,13 @@ export class Controls {
       this.y = 0;
       this.stickActive = false;
     } else {
-      const scale = this.options.sensitivity;
-      const dx = (e.clientX - p.x) * scale,
-        dy = (e.clientY - p.y) * scale;
-      const threshold = 18;
-      let shot = this.selected,
-        mixed = 0;
-      if (Math.hypot(dx, dy) > threshold) {
-        if (Math.abs(dy) > Math.abs(dx) * 0.65)
-          shot = dy < 0 ? "topspin" : "backspin";
-        else shot = dx < 0 ? "side-left" : "side-right";
-        if (Math.abs(dx) > threshold && Math.abs(dy) > threshold)
-          mixed = Math.sign(dx);
-      }
-      this.onStroke({
-        shot,
-        charge: clamp((performance.now() - p.time - 160) / 850, 0, 1),
-        mixed,
-        aim: clamp(this.aim + dx * 0.002, -0.65, 0.65),
-      });
+      const rect = this.element.getBoundingClientRect();
+      this.onStroke(recognizeGesture(
+        (e.clientX - p.x) * 960 / rect.width,
+        (e.clientY - p.y) * 540 / rect.height,
+        performance.now() - p.time,
+        this.options.sensitivity,
+      ));
     }
     this.element.classList.toggle(
       "charging",
@@ -157,8 +145,10 @@ export class Controls {
     );
   };
   private cancel = (e: PointerEvent) => {
+    const point = this.points.get(e.pointerId);
     this.points.delete(e.pointerId);
-    this.reset();
+    if (point?.left) { this.x = 0; this.y = 0; this.stickActive = false; }
+    this.element.classList.toggle("charging", [...this.points.values()].some(p => !p.left));
   };
   update() {
     if (!this.stickActive) {
@@ -183,4 +173,24 @@ export class Controls {
     this.abort.abort();
     this.reset();
   }
+}
+
+/** Screen right is world +X for the fixed player camera, including left-handed mode. */
+export function recognizeGesture(dx: number, dy: number, duration: number, sensitivity = 1): Gesture {
+  dx *= sensitivity;
+  dy *= sensitivity;
+  const distance = Math.hypot(dx, dy);
+  const speed = distance / Math.max(40, duration);
+  let shot: ShotId = "flat";
+  let mixed = 0;
+  if (distance >= 14) {
+    if (distance < 45 && speed < 0.3) shot = "drop";
+    else if (Math.abs(dx) > Math.abs(dy) * 0.65) {
+      shot = dx < 0 ? "side-left" : "side-right";
+      if (Math.abs(dy) > 18) mixed = dy < 0 ? 1 : -1;
+    } else if (dy > 0) shot = "backspin";
+    else shot = speed > 0.9 && distance > 85 ? "forehand" : "topspin";
+  }
+  return { shot, mixed, aim: clamp(dx / 180, -0.65, 0.65),
+    charge: distance > 50 ? clamp((speed - 0.3) * 0.65, 0, 0.8) : 0 };
 }

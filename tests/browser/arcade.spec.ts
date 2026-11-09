@@ -269,3 +269,36 @@ test.describe("iPhone-size touch viewport (Chromium emulation)", () => {
     await expect(page.locator("#rotate")).toContainText("TURN UP THE CITY");
   });
 });
+
+test('wide mobile viewport fills the screen and accepts gestures at its right edge', async ({ page }) => {
+  await page.setViewportSize({ width: 874, height: 402 });
+  await quick(page);
+  const app = (await page.locator('#app').boundingBox())!;
+  const canvas = (await page.locator('canvas').boundingBox())!;
+  expect(app.width).toBe(874); expect(app.height).toBe(402);
+  expect(canvas.width).toBe(874); expect(canvas.height).toBe(402);
+  const input = (await page.locator('#game-input').boundingBox())!;
+  expect(input.x).toBeLessThanOrEqual(1);
+  expect(input.x + input.width).toBeGreaterThanOrEqual(873);
+  await page.mouse.click(861, 240);
+  await expect.poll(async () => (await state(page)).state).toBe('toss');
+  const dimensions = await page.evaluate(() => ({w:document.documentElement.scrollWidth,h:document.documentElement.scrollHeight}));
+  expect(dimensions).toEqual({w:874,h:402});
+  await page.screenshot({ path:'test-results/assisted-wide.png' });
+});
+
+for (const [arena, name] of [[0,'vegas'],[1,'new-york'],[3,'miami'],[4,'tokyo'],[6,'belgrade']] as const) {
+  test(`colorful ${name} court renders on a wide mobile viewport`, async ({page}) => {
+    await page.setViewportSize({width:874,height:402});
+    await page.addInitScript(() => {
+      localStorage.setItem('spin-city-v1', JSON.stringify({version:1,arenas:Array.from({length:12},(_,i)=>i)}));
+    });
+    await page.goto('./');
+    await page.getByRole('button',{name:'START GAME'}).click();
+    await page.locator(`[data-action="arena"][data-value="${arena}"]`).click();
+    await page.getByRole('button',{name:"LET'S PLAY"}).click();
+    await expect(page.locator('#hud')).toBeVisible();
+    expect((await state(page)).config.arena).toBe(arena);
+    await page.screenshot({path:`test-results/court-${name}.png`});
+  });
+}

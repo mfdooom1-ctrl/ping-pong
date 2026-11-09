@@ -17,3 +17,10 @@ export const PHYSICS = Object.freeze({
   paddleReach: 0.29,
   paddleHeight: 1.34,
 });
+
+/** Assistance changes positioning and intent timing, never the physical ball radius. */
+export const ASSIST = {
+  EASY: { buffer: 0.62, timing: 0.42, speed: 1.3, tracking: 12, pace: 0.82 },
+  PRO: { buffer: 0.32, timing: 0.24, speed: 1, tracking: 8, pace: 1 },
+  MANUAL: { buffer: 0.2, timing: 0.18, speed: 0, tracking: 6, pace: 1 },
+} as const;
